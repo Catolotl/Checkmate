@@ -2,176 +2,354 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Chess Teacher (Drag-and-Drop, Free)</title>
-  <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs/dist/chessboard-1.0.0.min.css">
+  <title>Chess Tower Defense</title>
   <style>
-    body { font-family: sans-serif; background: #f5f5f7; }
-    #container { max-width: 560px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #aaa; padding: 24px;}
-    #board { width: 400px; height: 400px; margin: 0 auto 16px auto; }
-    #controls { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;}
-    #moves { background: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 8px; margin-bottom: 16px; font-size: 0.95em; min-height: 32px;}
-    .move { margin-right: 8px; }
-    select, button { padding: 7px; border-radius: 4px; border: 1px solid #bbb; font-size: 1em;}
-    button { background: #3369e7; color: #fff; border: none; cursor: pointer; }
-    button:hover { background: #2856b6; }
-    .info { margin: 8px 0; color: #222; }
-    #helpInfo { margin-top: 8px; color: #1a5e23; }
-    #warning { color: #bb2222; font-size: 0.95em; margin-bottom: 8px;}
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #437d3c;
+      overflow: hidden;
+    }
+    body {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #game {
+      width: 80vmin;
+      height: 80vmin;
+      min-width: 320px;
+      min-height: 320px;
+      max-width: 95vw;
+      max-height: 95vh;
+      position: relative;
+      box-shadow: 0 0 30px #222;
+      border-radius: 12px;
+      background: #264d21;
+      overflow: hidden;
+    }
+    #board {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      position: absolute;
+      top: 0; left: 0;
+      z-index: 1;
+    }
+    .cell {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .grass-light {
+      background: #83b77b;
+    }
+    .grass-dark {
+      background: #437d3c;
+    }
+    .piece {
+      width: 70%;
+      height: 70%;
+      cursor: pointer;
+      transition: transform 0.1s;
+      z-index: 2;
+      position: absolute;
+      left: 15%;
+      top: 15%;
+      pointer-events: auto;
+    }
+    .piece.selected {
+      transform: scale(1.18);
+      filter: drop-shadow(0 0 4px #fff);
+      z-index: 10;
+    }
+    .enemy {
+      width: 60%;
+      height: 60%;
+      position: absolute;
+      z-index: 3;
+      left: 20%;
+      top: 20%;
+      pointer-events: none;
+      animation: enemyMove 0.7s linear;
+    }
+    @keyframes enemyMove {
+      0% { filter: brightness(1); }
+      100% { filter: brightness(1.5); }
+    }
+    .hint {
+      position: absolute;
+      width: 38%;
+      height: 38%;
+      left: 31%;
+      top: 31%;
+      background: rgba(255,255,0,0.2);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    #ui {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-family: sans-serif;
+      font-size: 1.2em;
+      text-shadow: 0 2px 6px #222;
+      z-index: 11;
+      background: rgba(50,80,40,0.6);
+      padding: 8px 18px;
+      border-radius: 8px;
+    }
+    #selector {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 12;
+      background: rgba(40,70,40,0.75);
+      padding: 6px 16px;
+      border-radius: 8px;
+    }
+    .selectpiece {
+      width: 34px; height: 34px;
+      background: none; border: none; cursor: pointer;
+      border-radius: 50%;
+      margin: 0 2px;
+      transition: background 0.17s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .selectpiece.selected {
+      background: rgba(255,255,0,0.18);
+    }
+    @media (max-width: 600px) {
+      #game { width: 97vw; height: 97vw; }
+    }
   </style>
 </head>
 <body>
-  <div id="container">
-    <h2>Chess Teacher (Drag Pieces!)</h2>
-    <div id="warning"></div>
+  <div id="game">
     <div id="board"></div>
-    <div id="controls">
-      <select id="difficulty">
-        <option value="easy">Easy</option>
-        <option value="medium" selected>Medium</option>
-        <option value="hard">Hard</option>
-      </select>
-      <button id="helpBtn">Help (Best Move)</button>
-      <button id="newBtn">New Match</button>
-      <button id="replayBtn">Replay Match</button>
-    </div>
-    <div id="moves"></div>
-    <div id="helpInfo"></div>
-    <div id="info" class="info"></div>
+    <div id="ui"></div>
+    <div id="selector"></div>
   </div>
-
-<script src="https://unpkg.com/@chrisoakman/chessboardjs/dist/chessboard-1.0.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/chess.min.js"></script>
 <script>
-  let movesDiv = document.getElementById('moves');
-  let newBtn = document.getElementById('newBtn');
-  let replayBtn = document.getElementById('replayBtn');
-  let helpBtn = document.getElementById('helpBtn');
-  let infoDiv = document.getElementById('info');
-  let difficultySel = document.getElementById('difficulty');
-  let helpInfo = document.getElementById('helpInfo');
-  let warningDiv = document.getElementById('warning');
-  let chess = new Chess();
-  let gameMoves = [];
-  let replaying = false;
-  let board;
-  let botThinking = false;
+/** PIECE SVGs **/
+const PIECE_SVGS = {
+  pawn: `<svg viewBox="0 0 45 45"><circle cx="22.5" cy="22.5" r="12" fill="#fff"/><rect x="18" y="30" width="9" height="8" rx="4.5" fill="#999"/></svg>`,
+  rook: `<svg viewBox="0 0 45 45"><rect x="13" y="13" width="19" height="20" rx="4" fill="#fff"/><rect x="18" y="7" width="9" height="11" rx="2" fill="#999"/></svg>`,
+  bishop: `<svg viewBox="0 0 45 45"><ellipse cx="22.5" cy="20" rx="8.5" ry="12" fill="#fff"/><rect x="17" y="33" width="11" height="7" rx="5.5" fill="#999"/></svg>`,
+  knight: `<svg viewBox="0 0 45 45"><path d="M12,35 Q22,14 38,29 Q30,25 27,33 Q32,13 15,28" fill="#fff"/><ellipse cx="22" cy="37" rx="9" ry="5" fill="#999"/></svg>`,
+  queen: `<svg viewBox="0 0 45 45"><ellipse cx="22.5" cy="17" rx="13" ry="11" fill="#fff"/><rect x="14" y="28" width="17" height="8" rx="4" fill="#999"/><circle cx="10" cy="12" r="3" fill="#fff"/><circle cx="35" cy="12" r="3" fill="#fff"/></svg>`,
+  king: `<svg viewBox="0 0 45 45"><rect x="15" y="15" width="15" height="17" rx="6.5" fill="#fff"/><rect x="18" y="34" width="9" height="7" rx="4.5" fill="#999"/><rect x="20" y="7" width="5" height="8" rx="2.5" fill="#fff"/></svg>`
+};
+const ENEMY_SVG = `<svg viewBox="0 0 45 45"><ellipse cx="22.5" cy="22.5" rx="14" ry="14" fill="#ce2f2f"/><ellipse cx="22.5" cy="31" rx="7" ry="3.5" fill="#a11212"/></svg>`;
 
-  // Check Lichess API (CORS) for GitHub Pages compatibility
-  async function checkAPI() {
-    try {
-      let test = await fetch('https://explorer.lichess.ovh/masters?fen=rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR%20w%20KQkq%20-%200%201');
-      if (!test.ok) throw new Error();
-      warningDiv.textContent = "";
-      return true;
-    } catch(e) {
-      warningDiv.textContent = "⚠️ Lichess API is not available. Bot and Help will play random moves only.";
-      return false;
+const PIECE_ORDER = ["pawn","rook","bishop","knight","queen","king"];
+const PIECE_NAMES = {
+  pawn: "Pawn", rook: "Rook", bishop: "Bishop", knight: "Knight", queen: "Queen", king: "King"
+};
+
+/** GAME STATE **/
+const boardDiv = document.getElementById('board');
+const uiDiv = document.getElementById('ui');
+const selectorDiv = document.getElementById('selector');
+let board = Array.from({length:8},()=>Array(8).fill(null));
+let enemies = [];
+let selectedPieceType = "pawn";
+let selectedCell = null;
+let placingMode = true;
+let tick = 0;
+let lives = 10;
+let score = 0;
+let spawnRate = 60; // higher=slower
+let nextWave = 0;
+
+/** RENDER BOARD **/
+function renderBoard() {
+  boardDiv.innerHTML = "";
+  for (let r=0; r<8; r++) for (let c=0; c<8; c++) {
+    let cell = document.createElement("div");
+    cell.className = "cell " + ((r+c)%2==0 ? "grass-light" : "grass-dark");
+    cell.dataset.r = r; cell.dataset.c = c;
+    cell.onclick = () => cellClick(r,c);
+    boardDiv.appendChild(cell);
+    // piece
+    let piece = board[r][c];
+    if (piece) {
+      let div = document.createElement("div");
+      div.className = "piece" + (selectedCell&&selectedCell[0]==r&&selectedCell[1]==c ? " selected":"");
+      div.innerHTML = PIECE_SVGS[piece.type];
+      div.title = PIECE_NAMES[piece.type];
+      cell.appendChild(div);
+    }
+    // hint
+    if (selectedCell && placingMode===false) {
+      let [sr,sc] = selectedCell;
+      let piece = board[sr][sc];
+      if (piece && validMove(piece.type,sr,sc,r,c)) {
+        let hint = document.createElement("div");
+        hint.className = "hint";
+        cell.appendChild(hint);
+      }
     }
   }
-
-  let lichessAvailable = false;
-  checkAPI().then(ok => lichessAvailable = ok);
-
-  function updateUI() {
-    if (board) board.position(chess.fen());
-    movesDiv.innerHTML = chess.history({verbose:true}).map((m,i) =>
-      `<span class="move">${i%2==0?(Math.floor(i/2)+1)+'.':''}${m.san}</span>`).join('');
-    infoDiv.textContent = chess.game_over() ? (
-      chess.in_draw() ? 'Draw!' : (chess.turn() === 'w' ? 'Black wins!' : 'White wins!')
-    ) : 'Your turn: ' + (chess.turn() === 'w' ? 'White' : 'Black');
-    helpInfo.textContent = '';
+  // Render enemies
+  for (let enemy of enemies) {
+    let cell = boardDiv.children[enemy.r*8+enemy.c];
+    let div = document.createElement("div");
+    div.className = "enemy";
+    div.innerHTML = ENEMY_SVG;
+    cell.appendChild(div);
   }
+}
 
-  async function botMove() {
-    if (chess.game_over()) return;
-    botThinking = true;
-    infoDiv.textContent = 'Bot thinking...';
-    let move;
-    if (difficultySel.value === 'easy' || !lichessAvailable) {
-      const legal = chess.moves();
-      move = legal[Math.floor(Math.random()*legal.length)];
+/** PIECE SELECTOR **/
+function renderSelector() {
+  selectorDiv.innerHTML = "";
+  PIECE_ORDER.forEach(type => {
+    let btn = document.createElement("button");
+    btn.className = "selectpiece" + (selectedPieceType===type?" selected":"");
+    btn.innerHTML = PIECE_SVGS[type];
+    btn.onclick = ()=>{
+      selectedPieceType=type;
+      placingMode=true;
+      selectedCell=null;
+      renderSelector();
+    };
+    btn.title = PIECE_NAMES[type];
+    selectorDiv.appendChild(btn);
+  });
+}
+
+/** CELL CLICK HANDLER **/
+function cellClick(r,c) {
+  if (placingMode) {
+    // Place piece if cell is empty
+    if (!board[r][c]) {
+      board[r][c] = {type:selectedPieceType};
+      renderBoard();
+      renderSelector();
     } else {
-      move = await getMostPopularMove(chess.fen());
+      // select piece to show moves
+      selectedCell = [r,c];
+      placingMode=false;
+      renderBoard();
     }
-    if (move && chess.move(move)) {
-      gameMoves.push(move);
-      updateUI();
+  } else {
+    // move piece (if allowed)
+    let [sr,sc]=selectedCell;
+    let piece = board[sr][sc];
+    if (piece && validMove(piece.type,sr,sc,r,c) && !board[r][c]) {
+      board[r][c]=piece;
+      board[sr][sc]=null;
+      placingMode=true;
+      selectedCell=null;
+      renderBoard();
+      renderSelector();
+    } else if (sr===r && sc===c) {
+      // deselect
+      placingMode=true;
+      selectedCell=null;
+      renderBoard();
+      renderSelector();
+    }
+  }
+}
+
+/** PIECE MOVEMENT LOGIC **/
+function validMove(type,sr,sc,r,c) {
+  let dr=r-sr, dc=c-sc;
+  switch(type) {
+    case "pawn": return dr===1 && dc===0;
+    case "rook": return (dr===0&&dc!==0)||(dr!==0&&dc===0);
+    case "bishop": return Math.abs(dr)===Math.abs(dc)&&dr!==0;
+    case "knight": return (Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2);
+    case "queen": return (
+      (dr===0&&dc!==0)||(dr!==0&&dc===0)||(Math.abs(dr)===Math.abs(dc)&&dr!==0)
+    );
+    case "king": return Math.abs(dr)<=1&&Math.abs(dc)<=1&&(dr!==0||dc!==0);
+  }
+  return false;
+}
+
+/** ENEMY LOGIC **/
+function spawnEnemy() {
+  // Spawn on top row, random col
+  let col = Math.floor(Math.random()*8);
+  enemies.push({r:0,c:col});
+}
+function moveEnemies() {
+  for (let enemy of enemies) {
+    // Move down if not blocked
+    if (enemy.r<7 && !board[enemy.r+1][enemy.c]) {
+      enemy.r++;
     } else {
-      infoDiv.textContent = "Bot cannot move.";
+      // Check if captured by piece
+      let piece = board[enemy.r][enemy.c];
+      if (piece) {
+        score++;
+        board[enemy.r][enemy.c]=null;
+        enemy.remove=true;
+      } else if (enemy.r===7) {
+        lives--;
+        enemy.remove=true;
+      }
     }
-    botThinking = false;
   }
+  enemies = enemies.filter(e=>!e.remove);
+}
 
-  async function getMostPopularMove(fen) {
-    if (!lichessAvailable) {
-      const legal = chess.moves();
-      return legal[Math.floor(Math.random()*legal.length)];
-    }
-    try {
-      const res = await fetch(`https://explorer.lichess.ovh/masters?fen=${encodeURIComponent(fen)}`);
-      const data = await res.json();
-      if (data.moves && data.moves.length) return data.moves[0].san;
-    } catch(e) {}
-    const legal = chess.moves();
-    return legal[Math.floor(Math.random()*legal.length)];
+/** MAIN GAME LOOP **/
+function gameTick() {
+  tick++;
+  if (lives<=0) {
+    uiDiv.innerHTML = `<b>Game Over!</b> Score: ${score} <button onclick="restartGame()">Restart</button>`;
+    return;
   }
+  if (tick%spawnRate===0) spawnEnemy();
+  moveEnemies();
+  renderBoard();
+  uiDiv.innerHTML = `Score: <b>${score}</b> &nbsp; Lives: <b>${lives}</b> &nbsp; <button onclick="clearBoard()">Clear Board</button>`;
+  requestAnimationFrame(gameTick);
+}
+function clearBoard() {
+  board = Array.from({length:8},()=>Array(8).fill(null));
+  placingMode=true;
+  selectedCell=null;
+  renderBoard();
+  renderSelector();
+}
+function restartGame() {
+  board = Array.from({length:8},()=>Array(8).fill(null));
+  enemies = [];
+  selectedCell=null;
+  tick=0;
+  lives=10;
+  score=0;
+  placingMode=true;
+  renderBoard();
+  renderSelector();
+  gameTick();
+}
 
-  function onDrop(source, target) {
-    if (chess.game_over() || botThinking) return 'snapback';
-    const move = chess.move({from: source, to: target, promotion: 'q'});
-    if (move === null) return 'snapback';
-    gameMoves.push(move.san);
-    updateUI();
-    setTimeout(botMove, 400);
-  }
+// INIT
+renderBoard();
+renderSelector();
+gameTick();
 
-  function onSnapEnd() {
-    board.position(chess.fen());
-  }
-
-  newBtn.onclick = () => {
-    chess = new Chess();
-    gameMoves = [];
-    replaying = false;
-    updateUI();
-    infoDiv.textContent = "New match started.";
-  };
-
-  replayBtn.onclick = async () => {
-    if (!gameMoves.length) return;
-    chess = new Chess();
-    replaying = true;
-    board.position(chess.fen());
-    movesDiv.innerHTML = '';
-    infoDiv.textContent = "Replaying match...";
-    for (const m of gameMoves) {
-      await new Promise(r=>setTimeout(r, 650));
-      chess.move(m);
-      board.position(chess.fen());
-      movesDiv.innerHTML = chess.history({verbose:true}).map((m,i) =>
-        `<span class="move">${i%2==0?(Math.floor(i/2)+1)+'.':''}${m.san}</span>`).join('');
-    }
-    replaying = false;
-    infoDiv.textContent = "Replay complete.";
-  };
-
-  helpBtn.onclick = async () => {
-    helpInfo.textContent = "Thinking...";
-    let move = await getMostPopularMove(chess.fen());
-    helpInfo.textContent = lichessAvailable
-      ? `Recommended move: ${move}` :
-      `Random move: ${move} (Lichess API unavailable)`;
-  };
-
-  window.onload = function() {
-    board = Chessboard('board', {
-      draggable: true,
-      position: 'start',
-      onDrop: onDrop,
-      onSnapEnd: onSnapEnd
-    });
-    updateUI();
-  };
 </script>
 </body>
 </html>
