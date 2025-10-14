@@ -2,115 +2,188 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Checkmate MVP</title>
+<title>Checkmate: Puzzle Dash</title>
 <style>
-  body { margin:0; display:flex; flex-direction:column; align-items:center; font-family:sans-serif; background:#264d21; color:#fff; }
-  #board { display:grid; grid-template-columns:repeat(8,60px); grid-template-rows:repeat(8,60px); gap:1px; margin:20px; }
-  .cell { width:60px; height:60px; display:flex; align-items:center; justify-content:center; background:#83b77b; }
-  .cell.dark { background:#437d3c; }
-  .pawn { width:40px; height:40px; background:#fff; border-radius:50%; cursor:pointer; }
-  .enemy { width:40px; height:40px; background:#ce2f2f; border-radius:50%; }
-  #ui { margin-top:10px; }
-  button { padding:5px 10px; margin-left:10px; cursor:pointer; }
+  body {
+    font-family: sans-serif;
+    background: #264d21;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    color: #fff;
+  }
+  #game {
+    width: 90vmin;
+    height: 90vmin;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    position: relative;
+    border: 4px solid #111;
+    background: #437d3c;
+  }
+  .cell {
+    border: 1px solid #333;
+    position: relative;
+    background: rgba(255,255,255,0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .cell:nth-child(even) { background: rgba(255,255,255,0.05); }
+  .piece {
+    width: 70%;
+    height: 70%;
+    background: #fff;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #111;
+    font-weight: bold;
+    font-size: 1.2em;
+  }
+  .target {
+    width: 50%;
+    height: 50%;
+    background: red;
+    border-radius: 50%;
+    position: absolute;
+  }
+  #info {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.2em;
+    text-align: center;
+  }
+  button {
+    margin-top: 10px;
+    padding: 6px 12px;
+    font-size: 1em;
+  }
 </style>
 </head>
 <body>
-
-<h2>Checkmate MVP</h2>
-<div id="board"></div>
-<div id="ui">
-  Score: <span id="score">0</span> | Lives: <span id="lives">5</span>
-  <button onclick="restartGame()">Restart</button>
+<div id="info">
+  <span id="score">Score: 0</span> | <span id="pieceType">Piece: Pawn</span>
+  <br>
+  <button id="changePiece">Change Piece</button>
 </div>
+<div id="game"></div>
 
 <script>
-const boardDiv = document.getElementById('board');
-let board = Array.from({length:8},()=>Array(8).fill(null));
-let enemies = [];
-let score = 0;
-let lives = 5;
-let tick = 0;
+// --- GAME STATE ---
+const gameDiv = document.getElementById("game");
+const scoreSpan = document.getElementById("score");
+const pieceTypeSpan = document.getElementById("pieceType");
+const changeBtn = document.getElementById("changePiece");
 
-// Render board
+const PIECES = ["Pawn","Rook","Knight","Bishop","Queen","King"];
+let pieceTypeIndex = 0;
+let pieceType = PIECES[pieceTypeIndex];
+let score = 0;
+let board = Array.from({length:8},()=>Array(8).fill(null));
+let piecePos = [7,0];
+let targets = [];
+
+// --- RENDER ---
 function renderBoard() {
-  boardDiv.innerHTML = '';
+  gameDiv.innerHTML = "";
   for(let r=0;r<8;r++){
     for(let c=0;c<8;c++){
-      const cell = document.createElement('div');
-      cell.className = 'cell '+((r+c)%2?'dark':'');
-      cell.dataset.r = r; cell.dataset.c = c;
-      cell.onclick = ()=>placePawn(r,c);
-      if(board[r][c]==='pawn') {
-        const pawn = document.createElement('div'); pawn.className='pawn';
-        cell.appendChild(pawn);
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      cell.onclick = ()=>cellClick(r,c);
+      gameDiv.appendChild(cell);
+    }
+  }
+  renderPiece();
+  renderTargets();
+}
+function renderPiece(){
+  const [r,c] = piecePos;
+  const cells = gameDiv.children;
+  const cell = cells[r*8+c];
+  const div = document.createElement("div");
+  div.className = "piece";
+  div.textContent = pieceType[0];
+  cell.appendChild(div);
+}
+function renderTargets(){
+  const cells = gameDiv.children;
+  for(const t of targets){
+    const cell = cells[t[0]*8+t[1]];
+    const div = document.createElement("div");
+    div.className = "target";
+    cell.appendChild(div);
+  }
+}
+function updateInfo(){
+  scoreSpan.textContent = "Score: "+score;
+  pieceTypeSpan.textContent = "Piece: "+pieceType;
+}
+
+// --- PIECE LOGIC ---
+function validMove(r1,c1,r2,c2,type){
+  const dr=r2-r1, dc=c2-c1;
+  switch(type){
+    case "Pawn": return dr===-1 && dc===0;
+    case "Rook": return dr===0 || dc===0;
+    case "Bishop": return Math.abs(dr)===Math.abs(dc);
+    case "Knight": return (Math.abs(dr)===2 && Math.abs(dc)===1)||(Math.abs(dr)===1 && Math.abs(dc)===2);
+    case "Queen": return (dr===0||dc===0)||Math.abs(dr)===Math.abs(dc);
+    case "King": return Math.abs(dr)<=1 && Math.abs(dc)<=1;
+  }
+  return false;
+}
+
+// --- CLICK ---
+function cellClick(r,c){
+  if(validMove(piecePos[0],piecePos[1],r,c,pieceType)){
+    piecePos=[r,c];
+    // check for targets
+    for(let i=0;i<targets.length;i++){
+      if(targets[i][0]===r && targets[i][1]===c){
+        targets.splice(i,1);
+        score++;
+        break;
       }
-      enemies.forEach(e=>{
-        if(e.r===r && e.c===c){
-          const enemy = document.createElement('div'); enemy.className='enemy';
-          cell.appendChild(enemy);
-        }
-      });
-      boardDiv.appendChild(cell);
     }
-  }
-}
-
-// Place a pawn
-function placePawn(r,c){
-  if(board[r][c]==null){
-    board[r][c]='pawn';
     renderBoard();
+    updateInfo();
   }
 }
 
-// Spawn enemy at random top row
-function spawnEnemy(){
-  const col = Math.floor(Math.random()*8);
-  enemies.push({r:0,c:col});
-}
-
-// Move enemies down
-function moveEnemies(){
-  enemies.forEach(e=>{
-    const nextR = e.r+1;
-    if(nextR>7){
-      lives--; e.remove=true;
-    } else if(board[nextR][e.c]==='pawn'){
-      score++; e.remove=true;
-    } else {
-      e.r = nextR;
-    }
-  });
-  enemies = enemies.filter(e=>!e.remove);
-}
-
-// Game loop
-function gameTick(){
-  tick++;
-  if(lives<=0){
-    alert('Game Over! Score: '+score);
-    return;
-  }
-  if(tick%30===0) spawnEnemy();
-  moveEnemies();
-  document.getElementById('score').textContent=score;
-  document.getElementById('lives').textContent=lives;
+// --- TARGETS ---
+function spawnTarget(){
+  let r=Math.floor(Math.random()*8);
+  let c=Math.floor(Math.random()*8);
+  // don't spawn on piece
+  if(r===piecePos[0] && c===piecePos[1]) return;
+  targets.push([r,c]);
+  if(targets.length>3) targets.shift();
   renderBoard();
-  requestAnimationFrame(gameTick);
 }
 
-// Restart
-function restartGame(){
-  board = Array.from({length:8},()=>Array(8).fill(null));
-  enemies = [];
-  score=0; lives=5; tick=0;
+// --- CHANGE PIECE ---
+changeBtn.onclick = ()=>{
+  pieceTypeIndex = (pieceTypeIndex+1)%PIECES.length;
+  pieceType = PIECES[pieceTypeIndex];
+  updateInfo();
   renderBoard();
-  gameTick();
 }
 
-// Init
+// --- MAIN LOOP ---
 renderBoard();
-gameTick();
+updateInfo();
+setInterval(spawnTarget,2000);
+
 </script>
 </body>
 </html>
