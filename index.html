@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chess Instructor Chatbot (No Account Needed)</title>
+  <style>
+    body { font-family: sans-serif; background: #f5f5f7; }
+    #container { max-width: 500px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #aaa; padding: 24px; }
+    #chat { height: 330px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; padding: 12px; background: #fafafa; margin-bottom: 16px; }
+    .user { color: #3369e7; font-weight: bold; margin-top: 8px; }
+    .bot { color: #222; margin-bottom: 10px; }
+    form { display: flex; gap: 8px; }
+    input[type="text"] { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #bbb; }
+    button { background: #3369e7; color: #fff; border: none; border-radius: 4px; padding: 0 16px; font-size: 1em; }
+    button:hover { background: #2856b6; }
+    .board-img { margin: 8px 0; border-radius: 4px; border: 1px solid #ddd; max-width: 100%; }
+    a { color: #3369e7; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h2>Chess Instructor Chatbot</h2>
+    <div id="chat"></div>
+    <form id="chatForm">
+      <input type="text" id="userInput" autocomplete="off" placeholder="Ask about chess or paste a FEN...">
+      <button type="submit">Send</button>
+    </form>
+  </div>
+  <script>
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('userInput');
+
+    function appendMessage(sender, text, isHtml = false) {
+      const msg = document.createElement('div');
+      msg.className = sender;
+      if (isHtml) msg.innerHTML = text;
+      else msg.textContent = text;
+      chat.appendChild(msg);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function isFEN(str) {
+      // Basic FEN validation: 6+ fields, slashes, white/black, castling, numbers
+      return /^[rnbqkpRNBQKP1-8\/ ]+ [wb] [KQkq\-]+ \S+ \d+ \d+$/.test(str.trim());
+    }
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (!q) return;
+      appendMessage('user', q);
+      input.value = '';
+      await handleChessQuery(q);
+    };
+
+    async function handleChessQuery(q) {
+      // 1. Check for FEN to show board and suggest moves
+      if (isFEN(q)) {
+        showBoardImage(q);
+        suggestMoves(q);
+        return;
+      }
+      // 2. Ask for rules/concepts (Wikipedia)
+      if (/en passant|castling|stalemate|checkmate|promotion|draw|pawn|rook|knight|bishop|queen|king|chess rules?/i.test(q)) {
+        fetchWiki(q);
+        return;
+      }
+      // 3. Opening moves suggestion
+      if (/opening|first move|start|best move/i.test(q)) {
+        const startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        showBoardImage(startFEN);
+        suggestMoves(startFEN);
+        return;
+      }
+      // 4. If input only a move (like "e4" or "Nf3"), suggest from opening explorer
+      if (/^[a-h][1-8]$|^[KQRBN][a-h]?[1-8]?x?[a-h][1-8]$/i.test(q)) {
+        const startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        appendMessage('bot', 'Move notation detected. Here is how this looks on the board:', false);
+        // Notation to FEN is complex; for demo just show start position and move suggestion
+        showBoardImage(startFEN);
+        suggestMoves(startFEN);
+        return;
+      }
+      // 5. Fallback: Try Wikipedia search, else default message
+      fetchWiki(q, true);
+    }
+
+    function showBoardImage(fen) {
+      // Normalize FEN for URL
+      const urlFen = fen.replace(/ /g, '_');
+      const imgUrl = `https://chessboardimage.com/${urlFen}.png`;
+      appendMessage('bot', `<img src="${imgUrl}" alt="Chessboard" class="board-img">`, true);
+    }
+
+    async function suggestMoves(fen) {
+      appendMessage('bot', 'Fetching common moves from master games...');
+      try {
+        const res = await fetch(`https://explorer.lichess.ovh/masters?fen=${encodeURIComponent(fen)}`);
+        const data = await res.json();
+        if (data.moves && data.moves.length) {
+          let html = '<b>Common moves:</b><ul>';
+          for (const move of data.moves.slice(0,5)) {
+            html += `<li>${move.san} (${move.white + move.black} games)</li>`;
+          }
+          html += '</ul>';
+          appendMessage('bot', html, true);
+        } else {
+          appendMessage('bot', 'No common moves found for this position.');
+        }
+      } catch (err) {
+        appendMessage('bot', 'Could not fetch moves from Lichess.');
+      }
+    }
+
+    async function fetchWiki(q, fallback=false) {
+      // Try to find chess term (use Wikipedia's opensearch API)
+      const term = q.replace(/[^a-zA-Z0-9 ]/g, '').trim() + ' chess';
+      try {
+        const searchRes = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&format=json&origin=*&search=${encodeURIComponent(term)}`);
+        const searchData = await searchRes.json();
+        if (searchData[1] && searchData[1][0]) {
+          const title = searchData[1][0];
+          const desc = searchData[2][0];
+          const link = searchData[3][0];
+          appendMessage('bot', `<b>${title}:</b> ${desc} <a href="${link}" target="_blank">Read more</a>`, true);
+          return;
+        }
+      } catch(e) {}
+      if (fallback) {
+        appendMessage('bot', 'Sorry, I could not find that chess concept. Try asking about rules, moves, or paste a FEN.');
+      }
+    }
+  </script>
+</body>
+</html>
