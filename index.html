@@ -72,6 +72,19 @@
       filter: drop-shadow(0 0 4px #fff);
       z-index: 10;
     }
+    .piece-health {
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7em;
+      color: #222;
+      background: rgba(255,255,255,0.6);
+      padding: 0 4px;
+      border-radius: 6px;
+      pointer-events: none;
+      z-index: 20;
+    }
     .enemy {
       width: 60%;
       height: 60%;
@@ -130,9 +143,21 @@
       margin: 0 2px;
       transition: background 0.17s;
       display: flex; align-items: center; justify-content: center;
+      position: relative;
     }
     .selectpiece.selected {
       background: rgba(255,255,0,0.18);
+    }
+    .piece-count {
+      position: absolute;
+      bottom: 1px;
+      right: 3px;
+      background: #ffe586;
+      color: #222;
+      font-size: 0.72em;
+      border-radius: 6px;
+      padding: 0 4px;
+      z-index: 20;
     }
     #placemodebtn {
       position: absolute;
@@ -168,18 +193,31 @@
     <div id="ui"></div>
     <div id="selector"></div>
   </div>
-<!-- ... Keep all your existing head content ... -->
 <script>
-/** PIECE SVGS ... unchanged ... **/
+/** PIECE SVGs **/
+const PIECE_SVGS = {
+  pawn: `<svg viewBox="0 0 45 45"><circle cx="22.5" cy="22.5" r="12" fill="#fff"/><rect x="18" y="30" width="9" height="8" rx="4.5" fill="#999"/></svg>`,
+  rook: `<svg viewBox="0 0 45 45"><rect x="13" y="13" width="19" height="20" rx="4" fill="#fff"/><rect x="18" y="7" width="9" height="11" rx="2" fill="#999"/></svg>`,
+  bishop: `<svg viewBox="0 0 45 45"><ellipse cx="22.5" cy="20" rx="8.5" ry="12" fill="#fff"/><rect x="17" y="33" width="11" height="7" rx="5.5" fill="#999"/></svg>`,
+  knight: `<svg viewBox="0 0 45 45"><path d="M12,35 Q22,14 38,29 Q30,25 27,33 Q32,13 15,28" fill="#fff"/><ellipse cx="22" cy="37" rx="9" ry="5" fill="#999"/></svg>`,
+  queen: `<svg viewBox="0 0 45 45"><ellipse cx="22.5" cy="17" rx="13" ry="11" fill="#fff"/><rect x="14" y="28" width="17" height="8" rx="4" fill="#999"/><circle cx="10" cy="12" r="3" fill="#fff"/><circle cx="35" cy="12" r="3" fill="#fff"/></svg>`,
+  king: `<svg viewBox="0 0 45 45"><rect x="15" y="15" width="15" height="17" rx="6.5" fill="#fff"/><rect x="18" y="34" width="9" height="7" rx="4.5" fill="#999"/><rect x="20" y="7" width="5" height="8" rx="2.5" fill="#999"/></svg>`
+};
+const ENEMY_SVG = `<svg viewBox="0 0 45 45"><ellipse cx="22.5" cy="22.5" rx="14" ry="14" fill="#ce2f2f"/><ellipse cx="22.5" cy="31" rx="7" ry="3.5" fill="#a11212"/></svg>`;
 
 const PIECE_ORDER = ["pawn","rook","bishop","knight","queen","king"];
-const PIECE_NAMES = { pawn: "Pawn", rook: "Rook", bishop: "Bishop", knight: "Knight", queen: "Queen", king: "King" };
+const PIECE_NAMES = {
+  pawn: "Pawn", rook: "Rook", bishop: "Bishop", knight: "Knight", queen: "Queen", king: "King"
+};
 const PIECE_COSTS = { pawn: 0, bishop: 5, knight: 10, rook: 15, queen: 20, king: 0 };
 const PIECE_LIMITS = { pawn: 8, bishop: 2, knight: 2, rook: 2, queen: 1, king: 1 };
 const PIECE_HEALTH = { pawn: 1, bishop: 2, knight: 3, rook: 4, queen: 5, king: 10 };
-let placedCounts = { pawn: 0, bishop: 0, knight: 0, rook: 0, queen: 0, king: 0 };
 
 /** GAME STATE **/
+const boardDiv = document.getElementById('board');
+const uiDiv = document.getElementById('ui');
+const selectorDiv = document.getElementById('selector');
+const placeModeBtn = document.getElementById('placemodebtn');
 let board = Array.from({length:8},()=>Array(8).fill(null));
 let enemies = [];
 let selectedPieceType = "pawn";
@@ -189,17 +227,61 @@ let tick = 0;
 let lives = 10;
 let score = 0;
 let money = 10;
+let placedCounts = { pawn: 0, bishop: 0, knight: 0, rook: 0, queen: 0, king: 0 };
 let spawnRate = 120;
 let enemyMoveRate = 24;
 let nextWave = 0;
 
 /** Place King at start, only one! **/
 function placeKing() {
+  // Place king at center left (row 3, col 0)
   board[3][0] = {type:"king", health: PIECE_HEALTH["king"]};
   placedCounts.king = 1;
 }
 
-/** RENDER BOARD ... unchanged except for enemy spawn logic and health display **/
+/** RENDER BOARD **/
+function renderBoard() {
+  boardDiv.innerHTML = "";
+  for (let r=0; r<8; r++) for (let c=0; c<8; c++) {
+    let cell = document.createElement("div");
+    cell.className = "cell " + ((r+c)%2==0 ? "grass-light" : "grass-dark");
+    cell.dataset.r = r; cell.dataset.c = c;
+    cell.onclick = () => cellClick(r,c);
+    boardDiv.appendChild(cell);
+    // piece
+    let piece = board[r][c];
+    if (piece) {
+      let div = document.createElement("div");
+      div.className = "piece" + (selectedCell&&selectedCell[0]==r&&selectedCell[1]==c ? " selected":"");
+      div.innerHTML = PIECE_SVGS[piece.type];
+      div.title = PIECE_NAMES[piece.type];
+      // Health display
+      let hp = document.createElement("div");
+      hp.className = "piece-health";
+      hp.textContent = `HP:${piece.health}`;
+      div.appendChild(hp);
+      cell.appendChild(div);
+    }
+    // hint
+    if (selectedCell && !placingMode) {
+      let [sr,sc] = selectedCell;
+      let piece = board[sr][sc];
+      if (piece && validMove(piece.type,sr,sc,r,c)) {
+        let hint = document.createElement("div");
+        hint.className = "hint";
+        cell.appendChild(hint);
+      }
+    }
+  }
+  // Render enemies
+  for (let enemy of enemies) {
+    let cell = boardDiv.children[enemy.r*8+enemy.c];
+    let div = document.createElement("div");
+    div.className = "enemy";
+    div.innerHTML = ENEMY_SVG;
+    cell.appendChild(div);
+  }
+}
 
 /** PIECE SELECTOR **/
 function renderSelector() {
@@ -216,9 +298,24 @@ function renderSelector() {
       renderSelector();
       renderBoard();
     };
-    btn.title = PIECE_NAMES[type] + ` ($${PIECE_COSTS[type]}, ${PIECE_LIMITS[type]-placedCounts[type]} left)`;
+    btn.title = `${PIECE_NAMES[type]} ($${PIECE_COSTS[type]} | ${PIECE_LIMITS[type]-placedCounts[type]} left)`;
+    // Show count left
+    let countDiv = document.createElement("div");
+    countDiv.className = "piece-count";
+    countDiv.textContent = PIECE_LIMITS[type]-placedCounts[type];
+    btn.appendChild(countDiv);
     selectorDiv.appendChild(btn);
   });
+}
+
+function updatePlaceBtn() {
+  if (placingMode) {
+    placeModeBtn.classList.add("active");
+    placeModeBtn.textContent = "Place Defenses";
+  } else {
+    placeModeBtn.classList.remove("active");
+    placeModeBtn.textContent = "Move Piece";
+  }
 }
 
 /** CELL CLICK HANDLER **/
@@ -226,6 +323,8 @@ function cellClick(r,c) {
   if (placingMode) {
     // Place piece if cell is empty, not limited, and enough money
     if (!board[r][c] && placedCounts[selectedPieceType] < PIECE_LIMITS[selectedPieceType] && money >= PIECE_COSTS[selectedPieceType]) {
+      // Don't allow king placement except at start
+      if (selectedPieceType === "king") return;
       board[r][c] = {type:selectedPieceType, health: PIECE_HEALTH[selectedPieceType]};
       placedCounts[selectedPieceType]++;
       money -= PIECE_COSTS[selectedPieceType];
@@ -258,6 +357,22 @@ function cellClick(r,c) {
       renderSelector();
     }
   }
+}
+
+/** PIECE MOVEMENT LOGIC **/
+function validMove(type,sr,sc,r,c) {
+  let dr=r-sr, dc=c-sc;
+  switch(type) {
+    case "pawn": return dr===0 && dc===1;
+    case "rook": return (dr===0&&dc!==0)||(dr!==0&&dc===0);
+    case "bishop": return Math.abs(dr)===Math.abs(dc)&&dr!==0;
+    case "knight": return (Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2);
+    case "queen": return (
+      (dr===0&&dc!==0)||(dr!==0&&dc===0)||(Math.abs(dr)===Math.abs(dc)&&dr!==0)
+    );
+    case "king": return Math.abs(dr)<=1&&Math.abs(dc)<=1&&(dr!==0||dc!==0);
+  }
+  return false;
 }
 
 /** ENEMY LOGIC ROTATED **/
@@ -338,7 +453,14 @@ function restartGame() {
   gameTick();
 }
 
-// Place mode button handler ... unchanged ...
+// Place mode button handler
+placeModeBtn.onclick = function() {
+  placingMode = true;
+  selectedCell = null;
+  updatePlaceBtn();
+  renderBoard();
+  renderSelector();
+};
 
 // INIT
 placeKing();
