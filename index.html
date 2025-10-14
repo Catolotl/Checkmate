@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Chess Tower Defense (Human Speed)</title>
+  <title>Chess Tower Defense (Playable)</title>
   <style>
     html, body {
       height: 100%;
@@ -134,14 +134,37 @@
     .selectpiece.selected {
       background: rgba(255,255,0,0.18);
     }
+    #placemodebtn {
+      position: absolute;
+      top: 55px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 13;
+      background: #f3e37d;
+      color: #333;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 1em;
+      cursor: pointer;
+      font-family: sans-serif;
+      box-shadow: 0 2px 8px #2221;
+    }
+    #placemodebtn.active {
+      background: #ffe586;
+      font-weight: bold;
+      border: 2px solid #eecc44;
+    }
     @media (max-width: 600px) {
       #game { width: 97vw; height: 97vw; }
+      #placemodebtn { font-size: 0.9em; padding: 6px 10px; }
     }
   </style>
 </head>
 <body>
   <div id="game">
     <div id="board"></div>
+    <button id="placemodebtn" class="active">Place Defenses</button>
     <div id="ui"></div>
     <div id="selector"></div>
   </div>
@@ -166,6 +189,7 @@ const PIECE_NAMES = {
 const boardDiv = document.getElementById('board');
 const uiDiv = document.getElementById('ui');
 const selectorDiv = document.getElementById('selector');
+const placeModeBtn = document.getElementById('placemodebtn');
 let board = Array.from({length:8},()=>Array(8).fill(null));
 let enemies = [];
 let selectedPieceType = "pawn";
@@ -174,8 +198,8 @@ let placingMode = true;
 let tick = 0;
 let lives = 10;
 let score = 0;
-let spawnRate = 120; // higher=slower, now slower than before
-let enemyMoveRate = 24; // move enemies every 24 frames (~0.4s at 60fps)
+let spawnRate = 120;
+let enemyMoveRate = 24;
 let nextWave = 0;
 
 /** RENDER BOARD **/
@@ -197,7 +221,7 @@ function renderBoard() {
       cell.appendChild(div);
     }
     // hint
-    if (selectedCell && placingMode===false) {
+    if (selectedCell && !placingMode) {
       let [sr,sc] = selectedCell;
       let piece = board[sr][sc];
       if (piece && validMove(piece.type,sr,sc,r,c)) {
@@ -228,11 +252,23 @@ function renderSelector() {
       selectedPieceType=type;
       placingMode=true;
       selectedCell=null;
+      updatePlaceBtn();
       renderSelector();
+      renderBoard();
     };
     btn.title = PIECE_NAMES[type];
     selectorDiv.appendChild(btn);
   });
+}
+
+function updatePlaceBtn() {
+  if (placingMode) {
+    placeModeBtn.classList.add("active");
+    placeModeBtn.textContent = "Place Defenses";
+  } else {
+    placeModeBtn.classList.remove("active");
+    placeModeBtn.textContent = "Move Piece";
+  }
 }
 
 /** CELL CLICK HANDLER **/
@@ -247,6 +283,7 @@ function cellClick(r,c) {
       // select piece to show moves
       selectedCell = [r,c];
       placingMode=false;
+      updatePlaceBtn();
       renderBoard();
     }
   } else {
@@ -256,14 +293,15 @@ function cellClick(r,c) {
     if (piece && validMove(piece.type,sr,sc,r,c) && !board[r][c]) {
       board[r][c]=piece;
       board[sr][sc]=null;
-      placingMode=true;
+      placingMode=true;     // <-- always go back to placing mode
       selectedCell=null;
+      updatePlaceBtn();
       renderBoard();
       renderSelector();
     } else if (sr===r && sc===c) {
-      // deselect
-      placingMode=true;
+      placingMode=true;     // <-- always go back to placing mode
       selectedCell=null;
+      updatePlaceBtn();
       renderBoard();
       renderSelector();
     }
@@ -321,7 +359,7 @@ function gameTick() {
     return;
   }
   if (tick%spawnRate===0) spawnEnemy();
-  if (tick%enemyMoveRate===0) moveEnemies(); // Only move enemies every enemyMoveRate frames
+  if (tick%enemyMoveRate===0) moveEnemies();
   renderBoard();
   uiDiv.innerHTML = `Score: <b>${score}</b> &nbsp; Lives: <b>${lives}</b> &nbsp; <button onclick="clearBoard()">Clear Board</button>`;
   requestAnimationFrame(gameTick);
@@ -330,6 +368,7 @@ function clearBoard() {
   board = Array.from({length:8},()=>Array(8).fill(null));
   placingMode=true;
   selectedCell=null;
+  updatePlaceBtn();
   renderBoard();
   renderSelector();
 }
@@ -341,14 +380,25 @@ function restartGame() {
   lives=10;
   score=0;
   placingMode=true;
+  updatePlaceBtn();
   renderBoard();
   renderSelector();
   gameTick();
 }
 
+// Place mode button handler
+placeModeBtn.onclick = function() {
+  placingMode = true;
+  selectedCell = null;
+  updatePlaceBtn();
+  renderBoard();
+  renderSelector();
+};
+
 // INIT
 renderBoard();
 renderSelector();
+updatePlaceBtn();
 gameTick();
 
 </script>
