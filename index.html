@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Chess Tower Defense (Playable)</title>
   <style>
+    /* ...styles unchanged... */
     html, body {
       height: 100%;
       margin: 0;
@@ -68,9 +69,9 @@
       pointer-events: auto;
     }
     .piece svg {
-  width: 100%;
-  height: 100%;
-}
+      width: 100%;
+      height: 100%;
+    }
     .piece.selected {
       transform: scale(1.18);
       filter: drop-shadow(0 0 4px #fff);
@@ -342,6 +343,15 @@ function cellClick(r,c) {
       renderBoard();
     }
   } else {
+    // -- FIX: If you click an empty cell in move mode, switch to placing mode --
+    if (!board[r][c]) {
+      placingMode = true;
+      selectedCell = null;
+      updatePlaceBtn();
+      renderBoard();
+      renderSelector();
+      return;
+    }
     // move piece (if allowed)
     let [sr,sc]=selectedCell;
     let piece = board[sr][sc];
