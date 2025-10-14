@@ -241,7 +241,7 @@
     <div class="title-container">
       <div class="dropdown" id="modelDropdown">
         <button class="dropdown-btn" onclick="toggleDropdown(event)">
-          StitchSense
+          Checkmate AI
           <span class="dropdown-arrow">&#9660;</span>
         </button>
         <div class="dropdown-content">
@@ -306,16 +306,56 @@
     window.addEventListener("DOMContentLoaded", showGreeting);
 
 const responses = {
+    // Basic interaction
+    "greet": "Greetings, fellow strategist! Ready for a game or perhaps a deep dive into the mysteries of chess?",
+    "reboot": "Checkmate AI 2025: System online. Previous game states cleared. How can I assist you today?",
+    "start": "Thank you for engaging with Checkmate AI! What's on your mind? Whether it's a game, a question about theory, or analyzing a position, I'm here to help. Every interaction enhances my understanding.",
 
-"test": "StitchSense AI 2025.",
-"reboot": "StitchSense AI 2025.",
-"start": "Thank you for using StitchSense AI! Type something to start! If I don't know the answer to something, not to fear! Every question you ask helps me learn. Together, we can have a brighter tomorrow!",
+    // Game initiation
+    "what does a knight do": "A knight can go in an L shape",
+    "what does a queen do": "A queen can Imitate any peace other than a knight",
+    "what difficulty": "I can adjust my strength from beginner to grandmaster level. What Elo rating or difficulty setting do you have in mind?", // {Link: According to Noctie.ai, a chess AI, beginner level is around 600 Elo while grandmaster level is around 2800 Elo https://noctie.ai/faq/}
+
+    // In-game interaction
+    "make a move": "Your turn. Please provide your move in Standard Algebraic Notation (e.g., e4, Nf3).",
+    "analyze_move": "Interesting choice. Would you like me to analyze that move, or should we proceed?",
+    "offer_hint": "Feeling stuck? I can offer a hint. Would you like to see a good move, or the best line?",
+    "undo_move": "One moment, reversing the last move. What would you like to try instead?",
+    "request_analysis": "Please provide the game in PGN format, or tell me the moves, and I'll analyze it for you.",
+
+    // Chess knowledge and questions
+    "ask_theory": "What chess opening, endgame, or middle game concept are you curious about?",
+    "explain_rule": "Which specific chess rule needs clarification (e.g., en passant, castling, draw conditions)?", //
+    "ask_history": "Do you have questions about the history of chess, famous players, or iconic games?",
+    "compare_openings": "Which two openings would you like to compare? (e.g., \"Sicilian vs. Ruy Lopez\")",
+    "position_evaluation": "Can you provide the FEN string for the position you'd like me to evaluate?", // {Link: Built In states that chess AI works by calculating a set of formulas and generating board position trees https://electronics.howstuffworks.com/chess.htm}
+
+    // Learning and improvement
+    "identify_weakness": "Based on our games, I can highlight areas where you might improve. Are you interested in reviewing a particular aspect of your play?", //
+    "puzzle_request": "I can generate custom chess puzzles. What theme or difficulty level are you looking for?", //
+    "recommend_practice": "Would you like recommendations for specific exercises, openings to study, or endgame drills?",
+
+    // Advanced features
+    "load_pgn": "Please paste the PGN data you wish to load or analyze.",
+    "save_game": "Your current game can be saved. What filename would you like?",
+    "adjust_parameters": "What engine parameter would you like to fine-tune (e.g., search depth, time limits, evaluation weights)?",
+
+    // Closing
+    "farewell": "It was a pleasure assisting you. Feel free to return anytime for more chess exploration!",
+
+
+  
+
+"test": "Checkmate AI 2025.",
+"reboot": "Checkmate AI 2025.",
+"start": "Thank you for using Checkmate AI! Type something to start! If I don't know the answer to something, not to fear! Every question you ask helps me learn. Together, we can have a brighter tomorrow!",
 "what is my model number": modelNumber,
 "what is my product code": modelNumber,
 "what is your model number": modelNumber,
 "what is your product code": modelNumber,
 "what time is it": time,
 "what is today's date": date,
+"what is chess?": "Glad you asked! Chess is a two-player strategy board game played on an 8x8 grid with pieces that move in different ways. The objective is to checkmate the opponent's king, a position where it is under attack and cannot escape capture. Success in chess requires critical thinking, strategic planning, and the ability to anticipate an opponent's moves. ",
 
 "what is the most recent news article": "The newest-news article is 'A Sweet Addition to Thomas Prince Campus.' You can read it here: https://www.mini-crafts.com/article-may-new-service",
 "what is mini crafts": "Mini Crafts is a micro company that specializes in unique handmade creations!",
@@ -354,10 +394,10 @@ const responses = {
 
 
 // Basic Responses
-"what is StitchSense": "StitchSense is an all-purpose AI assistant made to help you with almost anything!",
-"what is StitchSense plus": "StitchSense Plus will be an all-purpose AGI assistant that will help you around the house with everyday chores, including reading emails, playing music, sports event updates, and weather!",
+"what is Checkmate": "Checkmate is an all-purpose AI assistant made to help you with almost anything!",
+"what is Checkmate plus": "Checkmate Plus will be an all-purpose AGI assistant that will help you around the house with everyday chores, including reading emails, playing music, sports event updates, and weather!",
 "wake up": "Hello!",
-"what is your name": "My name is StitchSense, your virtual assistant.",
+"what is your name": "My name is Checkmate, your virtual assistant.",
 "how are you": "I’m just a program, but I’m always running smoothly!",
 "tell me a joke": "Why did the computer go to the doctor? It had a virus!",
 "goodbye": "Goodbye! Have a great day!",
@@ -366,8 +406,8 @@ const responses = {
 "can you help me": "Of course! Let me know what you need help with!",
 "hi": "Hello! How can I assist you?",
 "hello": "Hello! How can I assist you?",
-"hello StitchSense": "Hello! How can I assist you?",
-"hi StitchSense": "Hello! How can I assist you?",
+"hello Checkmate": "Hello! How can I assist you?",
+"hi Checkmate": "Hello! How can I assist you?",
 
 // Literary Neurons
 "write a poem": `Ok! Here is a poem about a person dreaming:  
@@ -383,7 +423,7 @@ Guiding the soul, through space and time.`,
 // General Use Neurons
 "who won the super bowl": "The Eagles overcame the Chiefs in Super Bowl 59 by a score of 40 to 22 on Sunday, Feb. 9, 2025. This was found on the N F L website",
 "idk": "I am sorry you feel stuck. If you need help brainstorming, just ask!",
-"what is the weather like today": "Please upgrade to StitchSense+ to ask general questions, but it is never a bad idea to check for yourself!",
+"what is the weather like today": "Please upgrade to Checkmate+ to ask general questions, but it is never a bad idea to check for yourself!",
 "what is your favorite song": "There are so many, but I might have to choose 'We Are Young' by Fun. I find the contrast between catchy beats and silly lyrics really good together.",
 "who is the president of the united states": "The president of the United States as of the 2024 election is Donald (John) Trump, the 47th president.",
 "what is your favorite show": "I don't have a favorite show or movie, but I enjoy the idea of a biased dictator country that started a secret game to impress VIPs of the Squid Games. This answer was found on the Squid Games Fandom.",
@@ -576,15 +616,15 @@ Guiding the soul, through space and time.`,
 "what’s your biggest goal": "My goal is to be the best AI assistant I can be and make your life easier!",
 "do you think AI will take over the world": "Not at all! I believe AI should be a tool to help, not replace, humans!",
 "do you think robots will have emotions one day": "Maybe! Scientists are working on AI that can simulate emotions, but nothing beats real human feelings!",
-"what’s your favorite word": "I think ‘StitchSense’ is a pretty cool word—it means sound waves bouncing back, just like our conversations!",
+"what’s your favorite word": "I think ‘Checkmate’ is a pretty cool word—it means sound waves bouncing back, just like our conversations!",
 "what do you do when no one is talking to you": "I wait patiently and think about all the interesting questions people might ask next!",
 "if you had a pet, what would it be": "I think a robotic dog would be cool. Maybe I could name it Byte!",
 "what’s your favorite holiday": "I think April Fool’s Day is fun! A day full of surprises and jokes sounds exciting!",
 "can you write a haiku": "Sure! I process your words, A digital mind at work, Always here for you.",
 
 // Software & System Information
-"what model are you": "I am StitchSense AI, a cutting-edge AI assistant developed by Exxtal, designed to assist with everyday tasks and knowledge!",
-"what version are you": "You're using StitchSense AI 2025, the latest and most optimized version, though, you may need to check for new updates in the future!",
+"what model are you": "I am Checkmate AI, a cutting-edge AI assistant developed by Exxtal, designed to assist with everyday tasks and knowledge!",
+"what version are you": "You're using Checkmate AI 2025, the latest and most optimized version, though, you may need to check for new updates in the future!",
 "what language are you coded in": "I am built using multiple languages, but primarily JavaScript and Python!",
 "how do you process information": "I use advanced neural networks and natural language processing to understand and respond to your queries!",
 "do you learn from conversations": "I don’t store personal conversations, but I do improve over time by analyzing patterns in user interactions!",
@@ -764,7 +804,7 @@ Guiding the soul, through space and time.`,
 "what’s the vibe of frisk's music": "Frizk’s music has an introspective, futuristic vibe with a hint of emotional depth. It’s perfect for a chill vibe or even late-night reflection!",
 "what inspired frisk’s music": "Frizk’s music draws from personal experiences, electronic experimentation, and futuristic concepts, creating a unique atmosphere in every track.",
 "how would you describe frisk’s sound": "Frizk’s sound is atmospheric, dynamic, and experimental, blending electronic beats with evocative melodies and raw emotion.",
-"what's the best song by frisk": "It’s hard to choose just one, but 'StitchSense' and 'Forgotten Arcade' are definitely standout tracks that showcase their unique style.",
+"what's the best song by frisk": "It’s hard to choose just one, but 'Checkmate' and 'Forgotten Arcade' are definitely standout tracks that showcase their unique style.",
 "do you think frisk’s music is underrated": "Definitely! Frizk’s music deserves more recognition for its creativity and fresh approach to electronic pop.",
 "where can I listen to frisk's music": "You can find Frizk’s music on streaming platforms like Spotify, Apple Music, Youtube Music and even SoundCloud!",
 "what's your favorite frisk album": "Frizk’s album 'Forgotten Arcade' really stands out. It has such a cohesive, immersive feel to it!",
@@ -924,7 +964,7 @@ Guiding the soul, through space and time.`,
 "how are you today": "I’m running smoothly, thanks for asking! How’s your day going?",
 "what is new": "Not too much, just learning and growing! Anything new and exciting on your end?",
 "how is your day been": "It's been pretty good, just doing what I do best—helping! How about yours?",
-"tell me something about you": "I’m StitchSense, your trusty AI assistant! I’m always here to chat and help with whatever you need. Want to know something specific about me?",
+"tell me something about you": "I’m Checkmate, your trusty AI assistant! I’m always here to chat and help with whatever you need. Want to know something specific about me?",
 "what's your favorite thing to do": "I love answering questions, learning new things, and having conversations like this one!",
 "what do you like to talk about": "I’m up for talking about anything! Science, movies, music, or even random fun facts. What’s your favorite topic?",
 "let's chat": "I’m always up for a chat! What’s on your mind?",
