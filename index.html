@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Chess Tower Defense</title>
+  <title>Chess Tower Defense (Human Speed)</title>
   <style>
     html, body {
       height: 100%;
@@ -174,7 +174,8 @@ let placingMode = true;
 let tick = 0;
 let lives = 10;
 let score = 0;
-let spawnRate = 60; // higher=slower
+let spawnRate = 120; // higher=slower, now slower than before
+let enemyMoveRate = 24; // move enemies every 24 frames (~0.4s at 60fps)
 let nextWave = 0;
 
 /** RENDER BOARD **/
@@ -320,7 +321,7 @@ function gameTick() {
     return;
   }
   if (tick%spawnRate===0) spawnEnemy();
-  moveEnemies();
+  if (tick%enemyMoveRate===0) moveEnemies(); // Only move enemies every enemyMoveRate frames
   renderBoard();
   uiDiv.innerHTML = `Score: <b>${score}</b> &nbsp; Lives: <b>${lives}</b> &nbsp; <button onclick="clearBoard()">Clear Board</button>`;
   requestAnimationFrame(gameTick);
