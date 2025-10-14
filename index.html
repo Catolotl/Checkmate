@@ -2,188 +2,213 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Checkmate: Puzzle Dash</title>
+<title>Checkmate RPG</title>
 <style>
-  body {
-    font-family: sans-serif;
-    background: #264d21;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    color: #fff;
-  }
-  #game {
-    width: 90vmin;
-    height: 90vmin;
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(8, 1fr);
-    position: relative;
-    border: 4px solid #111;
-    background: #437d3c;
-  }
-  .cell {
-    border: 1px solid #333;
-    position: relative;
-    background: rgba(255,255,255,0.1);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .cell:nth-child(even) { background: rgba(255,255,255,0.05); }
-  .piece {
-    width: 70%;
-    height: 70%;
-    background: #fff;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #111;
-    font-weight: bold;
-    font-size: 1.2em;
-  }
-  .target {
-    width: 50%;
-    height: 50%;
-    background: red;
-    border-radius: 50%;
-    position: absolute;
-  }
-  #info {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 1.2em;
-    text-align: center;
-  }
-  button {
-    margin-top: 10px;
-    padding: 6px 12px;
-    font-size: 1em;
-  }
+  body { background: #2e2e2e; color: #fff; font-family: sans-serif; text-align: center; }
+  #board { display: grid; grid-template-columns: repeat(8, 60px); grid-template-rows: repeat(8, 60px); margin: 20px auto; }
+  .cell { width: 60px; height: 60px; border: 1px solid #555; display: flex; align-items: center; justify-content: center; position: relative; }
+  .cell.white { background: #eee; color: #000; }
+  .cell.black { background: #666; }
+  .piece { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: absolute; top: 5px; left: 5px; }
+  #info { margin: 10px; font-size: 1.2em; }
+  .hp { position: absolute; bottom: 2px; left: 0; width: 100%; height: 5px; background: red; }
+  .team { margin-top: 10px; }
 </style>
 </head>
 <body>
-<div id="info">
-  <span id="score">Score: 0</span> | <span id="pieceType">Piece: Pawn</span>
-  <br>
-  <button id="changePiece">Change Piece</button>
-</div>
-<div id="game"></div>
+
+<h1>Checkmate RPG</h1>
+<div id="info">Select your piece to move</div>
+<div id="board"></div>
+<div class="team" id="playerTeam"></div>
+<button onclick="restartGame()">Restart Game</button>
 
 <script>
-// --- GAME STATE ---
-const gameDiv = document.getElementById("game");
-const scoreSpan = document.getElementById("score");
-const pieceTypeSpan = document.getElementById("pieceType");
-const changeBtn = document.getElementById("changePiece");
+const PIECES = {
+  pawn: {symbol:'♙', hp:10, atk:3},
+  rook: {symbol:'♖', hp:15, atk:5},
+  bishop: {symbol:'♗', hp:12, atk:4},
+  knight: {symbol:'♘', hp:12, atk:4},
+  queen: {symbol:'♕', hp:20, atk:7},
+  king: {symbol:'♔', hp:25, atk:6}
+};
 
-const PIECES = ["Pawn","Rook","Knight","Bishop","Queen","King"];
-let pieceTypeIndex = 0;
-let pieceType = PIECES[pieceTypeIndex];
-let score = 0;
+const ENEMIES_ORDER = ['pawn','pawn','rook','bishop','knight','queen','king'];
+
 let board = Array.from({length:8},()=>Array(8).fill(null));
-let piecePos = [7,0];
-let targets = [];
+let playerPieces = [];
+let selectedPiece = null;
 
-// --- RENDER ---
-function renderBoard() {
-  gameDiv.innerHTML = "";
+// Initialize board and enemies
+function initBoard() {
+  const boardDiv = document.getElementById('board');
+  boardDiv.innerHTML = '';
   for(let r=0;r<8;r++){
     for(let c=0;c<8;c++){
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      cell.dataset.r = r;
-      cell.dataset.c = c;
+      let cell = document.createElement('div');
+      cell.className = 'cell '+((r+c)%2===0?'white':'black');
+      cell.dataset.r=r; cell.dataset.c=c;
       cell.onclick = ()=>cellClick(r,c);
-      gameDiv.appendChild(cell);
+      boardDiv.appendChild(cell);
     }
   }
-  renderPiece();
-  renderTargets();
-}
-function renderPiece(){
-  const [r,c] = piecePos;
-  const cells = gameDiv.children;
-  const cell = cells[r*8+c];
-  const div = document.createElement("div");
-  div.className = "piece";
-  div.textContent = pieceType[0];
-  cell.appendChild(div);
-}
-function renderTargets(){
-  const cells = gameDiv.children;
-  for(const t of targets){
-    const cell = cells[t[0]*8+t[1]];
-    const div = document.createElement("div");
-    div.className = "target";
-    cell.appendChild(div);
+  // Place player pawn at bottom middle
+  addPlayerPiece('pawn',7,3);
+  // Place enemies in top row
+  for(let i=0;i<ENEMIES_ORDER.length;i++){
+    addEnemyPiece(ENEMIES_ORDER[i],0,i);
   }
-}
-function updateInfo(){
-  scoreSpan.textContent = "Score: "+score;
-  pieceTypeSpan.textContent = "Piece: "+pieceType;
+  renderBoard();
 }
 
-// --- PIECE LOGIC ---
-function validMove(r1,c1,r2,c2,type){
-  const dr=r2-r1, dc=c2-c1;
-  switch(type){
-    case "Pawn": return dr===-1 && dc===0;
-    case "Rook": return dr===0 || dc===0;
-    case "Bishop": return Math.abs(dr)===Math.abs(dc);
-    case "Knight": return (Math.abs(dr)===2 && Math.abs(dc)===1)||(Math.abs(dr)===1 && Math.abs(dc)===2);
-    case "Queen": return (dr===0||dc===0)||Math.abs(dr)===Math.abs(dc);
-    case "King": return Math.abs(dr)<=1 && Math.abs(dc)<=1;
-  }
-  return false;
+// Add player piece
+function addPlayerPiece(type,r,c){
+  let p = {type,typeObj:PIECES[type],r,c,hp:PIECES[type].hp};
+  board[r][c]=p; playerPieces.push(p);
 }
 
-// --- CLICK ---
-function cellClick(r,c){
-  if(validMove(piecePos[0],piecePos[1],r,c,pieceType)){
-    piecePos=[r,c];
-    // check for targets
-    for(let i=0;i<targets.length;i++){
-      if(targets[i][0]===r && targets[i][1]===c){
-        targets.splice(i,1);
-        score++;
-        break;
+// Add enemy piece
+function addEnemyPiece(type,r,c){
+  let e = {type,typeObj:PIECES[type],r,c,hp:PIECES[type].hp,enemy:true};
+  board[r][c]=e;
+}
+
+// Render board
+function renderBoard(){
+  const boardDiv = document.getElementById('board');
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      const cell = boardDiv.children[r*8+c];
+      cell.innerHTML='';
+      const piece = board[r][c];
+      if(piece){
+        let div = document.createElement('div');
+        div.className='piece';
+        div.innerHTML=piece.typeObj.symbol;
+        if(selectedPiece===piece) div.style.border='2px solid yellow';
+        let hpBar = document.createElement('div');
+        hpBar.className='hp';
+        hpBar.style.width=(piece.hp/piece.typeObj.hp*100)+'%';
+        div.appendChild(hpBar);
+        cell.appendChild(div);
       }
     }
+  }
+  updatePlayerTeam();
+}
+
+// Show player team
+function updatePlayerTeam(){
+  const teamDiv=document.getElementById('playerTeam');
+  teamDiv.innerHTML='Team: '+playerPieces.map(p=>p.typeObj.symbol).join(' ');
+}
+
+// Handle clicks
+function cellClick(r,c){
+  const piece = board[r][c];
+  if(selectedPiece){
+    if(selectedPiece.r===r && selectedPiece.c===c){ selectedPiece=null; renderBoard(); return; }
+    // If enemy, attack
+    if(piece && piece.enemy){
+      attack(selectedPiece,piece);
+      selectedPiece=null;
+      renderBoard();
+      setTimeout(enemyTurn,300);
+      return;
+    }
+    // Move to empty
+    if(!piece){
+      movePiece(selectedPiece,r,c);
+      selectedPiece=null;
+      renderBoard();
+      setTimeout(enemyTurn,300);
+      return;
+    }
+  } else if(piece && !piece.enemy){
+    selectedPiece=piece;
     renderBoard();
-    updateInfo();
   }
 }
 
-// --- TARGETS ---
-function spawnTarget(){
-  let r=Math.floor(Math.random()*8);
-  let c=Math.floor(Math.random()*8);
-  // don't spawn on piece
-  if(r===piecePos[0] && c===piecePos[1]) return;
-  targets.push([r,c]);
-  if(targets.length>3) targets.shift();
+// Move piece
+function movePiece(p,r,c){
+  board[p.r][p.c]=null;
+  p.r=r; p.c=c;
+  board[r][c]=p;
+}
+
+// Attack
+function attack(attacker,target){
+  target.hp -= attacker.typeObj.atk;
+  document.getElementById('info').innerText=`${attacker.typeObj.symbol} attacked ${target.typeObj.symbol} for ${attacker.typeObj.atk}!`;
+  if(target.hp<=0){
+    // Capture and convert to player if enemy
+    board[target.r][target.c]=null;
+    if(target.enemy) addPlayerPiece(target.type,target.r,target.c);
+    checkVictory();
+  }
+}
+
+// Enemy turn
+function enemyTurn(){
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      let e = board[r][c];
+      if(e && e.enemy){
+        // simple attack if adjacent
+        let dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+        for(let [dr,dc] of dirs){
+          let nr=r+dr,nc=c+dc;
+          if(nr>=0&&nr<8&&nc>=0&&nc<8){
+            let p = board[nr][nc];
+            if(p && !p.enemy){
+              p.hp -= e.typeObj.atk;
+              document.getElementById('info').innerText=`${e.typeObj.symbol} attacked ${p.typeObj.symbol} for ${e.typeObj.atk}!`;
+              if(p.hp<=0){
+                board[p.r][p.c]=null;
+                playerPieces = playerPieces.filter(x=>x!==p);
+                checkVictory();
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
   renderBoard();
 }
 
-// --- CHANGE PIECE ---
-changeBtn.onclick = ()=>{
-  pieceTypeIndex = (pieceTypeIndex+1)%PIECES.length;
-  pieceType = PIECES[pieceTypeIndex];
-  updateInfo();
-  renderBoard();
+// Victory / Game Over
+function checkVictory(){
+  let enemyCount=0;
+  let kingAlive=false;
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      let p=board[r][c];
+      if(p && p.enemy){
+        enemyCount++;
+        if(p.type==='king') kingAlive=true;
+      }
+    }
+  }
+  if(enemyCount===0 || !kingAlive){
+    document.getElementById('info').innerText='🎉 You Win!';
+  } else if(playerPieces.length===0){
+    document.getElementById('info').innerText='💀 Game Over!';
+  }
 }
 
-// --- MAIN LOOP ---
-renderBoard();
-updateInfo();
-setInterval(spawnTarget,2000);
+// Restart
+function restartGame(){
+  board = Array.from({length:8},()=>Array(8).fill(null));
+  playerPieces=[];
+  selectedPiece=null;
+  initBoard();
+}
 
+initBoard();
 </script>
+
 </body>
 </html>
