@@ -4,15 +4,18 @@
 <meta charset="UTF-8">
 <title>Checkmate RPG</title>
 <style>
-  body { background: #2e2e2e; color: #fff; font-family: sans-serif; text-align: center; }
-  #board { display: grid; grid-template-columns: repeat(8, 60px); grid-template-rows: repeat(8, 60px); margin: 20px auto; }
-  .cell { width: 60px; height: 60px; border: 1px solid #555; display: flex; align-items: center; justify-content: center; position: relative; }
+  body { background: #2e2e2e; color: #fff; font-family: sans-serif; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  h1 { margin-top: 20px; }
+  #board { display: grid; grid-template-columns: repeat(8, 60px); grid-template-rows: repeat(8, 60px); margin: 20px; border: 4px solid #222; }
+  .cell { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; position: relative; }
   .cell.white { background: #eee; color: #000; }
   .cell.black { background: #666; }
-  .piece { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: absolute; top: 5px; left: 5px; }
-  #info { margin: 10px; font-size: 1.2em; }
+  .piece { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: absolute; top: 5px; left: 5px; font-size: 30px; }
+  .selected { border: 2px solid yellow; }
   .hp { position: absolute; bottom: 2px; left: 0; width: 100%; height: 5px; background: red; }
+  #info { margin: 10px; font-size: 1.2em; }
   .team { margin-top: 10px; }
+  button { margin-top: 10px; padding: 6px 12px; font-size: 1em; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -24,108 +27,132 @@
 <button onclick="restartGame()">Restart Game</button>
 
 <script>
-const PIECES = {
-  pawn: {symbol:'♙', hp:10, atk:3},
-  rook: {symbol:'♖', hp:15, atk:5},
-  bishop: {symbol:'♗', hp:12, atk:4},
-  knight: {symbol:'♘', hp:12, atk:4},
-  queen: {symbol:'♕', hp:20, atk:7},
-  king: {symbol:'♔', hp:25, atk:6}
+// Chess symbols
+const SYMBOLS = {
+  white: { pawn:'♙', rook:'♖', knight:'♘', bishop:'♗', queen:'♕', king:'♔' },
+  black: { pawn:'♟', rook:'♜', knight:'♞', bishop:'♝', queen:'♛', king:'♚' }
 };
 
-const ENEMIES_ORDER = ['pawn','pawn','rook','bishop','knight','queen','king'];
+// Piece stats
+const STATS = {
+  pawn:{hp:10, atk:3}, rook:{hp:20, atk:6}, knight:{hp:15, atk:5}, bishop:{hp:15, atk:5}, queen:{hp:25, atk:8}, king:{hp:30, atk:7}
+};
 
 let board = Array.from({length:8},()=>Array(8).fill(null));
 let playerPieces = [];
 let selectedPiece = null;
 
-// Initialize board and enemies
-function initBoard() {
-  const boardDiv = document.getElementById('board');
-  boardDiv.innerHTML = '';
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
-      let cell = document.createElement('div');
-      cell.className = 'cell '+((r+c)%2===0?'white':'black');
-      cell.dataset.r=r; cell.dataset.c=c;
-      cell.onclick = ()=>cellClick(r,c);
-      boardDiv.appendChild(cell);
-    }
+// Chess movement logic
+function validMove(piece,r1,c1,r2,c2){
+  const dr = r2-r1, dc=c2-c1;
+  if(board[r2][c2] && board[r2][c2].enemy && board[r2][c2].color===piece.color) return false; // cannot attack own
+  switch(piece.type){
+    case 'pawn': return (piece.color==='white'?dr===-1:dr===1) && dc===0 && !board[r2][c2] || (Math.abs(dc)===1 && ((piece.color==='white' && dr===-1)||(piece.color==='black' && dr===1)) && board[r2][c2] && board[r2][c2].enemy!==piece.enemy);
+    case 'rook': return (dr===0||dc===0) && pathClear(r1,c1,r2,c2);
+    case 'bishop': return Math.abs(dr)===Math.abs(dc) && pathClear(r1,c1,r2,c2);
+    case 'queen': return ((dr===0||dc===0)||(Math.abs(dr)===Math.abs(dc))) && pathClear(r1,c1,r2,c2);
+    case 'king': return Math.abs(dr)<=1 && Math.abs(dc)<=1;
+    case 'knight': return (Math.abs(dr)===2 && Math.abs(dc)===1)||(Math.abs(dr)===1 && Math.abs(dc)===2);
   }
-  // Place player pawn at bottom middle
-  addPlayerPiece('pawn',7,3);
-  // Place enemies in top row
-  for(let i=0;i<ENEMIES_ORDER.length;i++){
-    addEnemyPiece(ENEMIES_ORDER[i],0,i);
+  return false;
+}
+
+// Check if path is clear for sliding pieces
+function pathClear(r1,c1,r2,c2){
+  const dr = Math.sign(r2-r1), dc=Math.sign(c2-c1);
+  let r=r1+dr, c=c1+dc;
+  while(r!==r2 || c!==c2){
+    if(board[r][c]) return false;
+    r+=dr; c+=dc;
+  }
+  return true;
+}
+
+// Initialize board
+function initBoard(){
+  board = Array.from({length:8},()=>Array(8).fill(null));
+  playerPieces = [];
+  selectedPiece = null;
+
+  // Player pawn
+  addPlayerPiece('pawn',6,4);
+
+  // Black setup
+  const setup=['rook','knight','bishop','queen','king','bishop','knight','rook'];
+  for(let i=0;i<8;i++){
+    addEnemy('pawn',1,i);
+    addEnemy(setup[i],0,i);
   }
   renderBoard();
+  updateTeam();
 }
 
 // Add player piece
 function addPlayerPiece(type,r,c){
-  let p = {type,typeObj:PIECES[type],r,c,hp:PIECES[type].hp};
+  const p={type,color:'white',r,c,hp:STATS[type].hp,enemy:false};
   board[r][c]=p; playerPieces.push(p);
 }
 
 // Add enemy piece
-function addEnemyPiece(type,r,c){
-  let e = {type,typeObj:PIECES[type],r,c,hp:PIECES[type].hp,enemy:true};
+function addEnemy(type,r,c){
+  const e={type,color:'black',r,c,hp:STATS[type].hp,enemy:true};
   board[r][c]=e;
 }
 
 // Render board
 function renderBoard(){
-  const boardDiv = document.getElementById('board');
+  const boardDiv=document.getElementById('board');
+  boardDiv.innerHTML='';
   for(let r=0;r<8;r++){
     for(let c=0;c<8;c++){
-      const cell = boardDiv.children[r*8+c];
-      cell.innerHTML='';
-      const piece = board[r][c];
+      const cell=document.createElement('div');
+      cell.className='cell '+((r+c)%2===0?'white':'black');
+      cell.dataset.r=r; cell.dataset.c=c;
+      cell.onclick=()=>cellClick(r,c);
+      const piece=board[r][c];
       if(piece){
-        let div = document.createElement('div');
-        div.className='piece';
-        div.innerHTML=piece.typeObj.symbol;
-        if(selectedPiece===piece) div.style.border='2px solid yellow';
-        let hpBar = document.createElement('div');
+        const div=document.createElement('div');
+        div.className='piece'+(piece===selectedPiece?' selected':'');
+        div.innerText=SYMBOLS[piece.color][piece.type];
+        const hpBar=document.createElement('div');
         hpBar.className='hp';
-        hpBar.style.width=(piece.hp/piece.typeObj.hp*100)+'%';
+        hpBar.style.width=(piece.hp/STATS[piece.type].hp*100)+'%';
         div.appendChild(hpBar);
         cell.appendChild(div);
       }
+      boardDiv.appendChild(cell);
     }
   }
-  updatePlayerTeam();
+  updateTeam();
 }
 
-// Show player team
-function updatePlayerTeam(){
+// Update team display
+function updateTeam(){
   const teamDiv=document.getElementById('playerTeam');
-  teamDiv.innerHTML='Team: '+playerPieces.map(p=>p.typeObj.symbol).join(' ');
+  teamDiv.innerHTML='Team: '+playerPieces.map(p=>SYMBOLS[p.color][p.type]).join(' ');
 }
 
 // Handle clicks
 function cellClick(r,c){
-  const piece = board[r][c];
+  const target=board[r][c];
   if(selectedPiece){
     if(selectedPiece.r===r && selectedPiece.c===c){ selectedPiece=null; renderBoard(); return; }
-    // If enemy, attack
-    if(piece && piece.enemy){
-      attack(selectedPiece,piece);
+    if(target && target.enemy!==selectedPiece.enemy && validMove(selectedPiece,selectedPiece.r,selectedPiece.c,r,c)){
+      attack(selectedPiece,target);
       selectedPiece=null;
       renderBoard();
       setTimeout(enemyTurn,300);
       return;
     }
-    // Move to empty
-    if(!piece){
+    if(!target && validMove(selectedPiece,selectedPiece.r,selectedPiece.c,r,c)){
       movePiece(selectedPiece,r,c);
       selectedPiece=null;
       renderBoard();
       setTimeout(enemyTurn,300);
       return;
     }
-  } else if(piece && !piece.enemy){
-    selectedPiece=piece;
+  } else if(target && !target.enemy){
+    selectedPiece=target;
     renderBoard();
   }
 }
@@ -139,36 +166,28 @@ function movePiece(p,r,c){
 
 // Attack
 function attack(attacker,target){
-  target.hp -= attacker.typeObj.atk;
-  document.getElementById('info').innerText=`${attacker.typeObj.symbol} attacked ${target.typeObj.symbol} for ${attacker.typeObj.atk}!`;
+  target.hp -= STATS[attacker.type].atk;
+  document.getElementById('info').innerText=`${SYMBOLS[attacker.color][attacker.type]} attacked ${SYMBOLS[target.color][target.type]} for ${STATS[attacker.type].atk}!`;
   if(target.hp<=0){
-    // Capture and convert to player if enemy
     board[target.r][target.c]=null;
     if(target.enemy) addPlayerPiece(target.type,target.r,target.c);
     checkVictory();
   }
 }
 
-// Enemy turn
+// Enemy turn (simple AI)
 function enemyTurn(){
   for(let r=0;r<8;r++){
     for(let c=0;c<8;c++){
-      let e = board[r][c];
+      const e=board[r][c];
       if(e && e.enemy){
-        // simple attack if adjacent
-        let dirs=[[-1,0],[1,0],[0,-1],[0,1]];
-        for(let [dr,dc] of dirs){
-          let nr=r+dr,nc=c+dc;
+        const dirs=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+        for(const [dr,dc] of dirs){
+          const nr=r+dr,nc=c+dc;
           if(nr>=0&&nr<8&&nc>=0&&nc<8){
-            let p = board[nr][nc];
+            const p=board[nr][nc];
             if(p && !p.enemy){
-              p.hp -= e.typeObj.atk;
-              document.getElementById('info').innerText=`${e.typeObj.symbol} attacked ${p.typeObj.symbol} for ${e.typeObj.atk}!`;
-              if(p.hp<=0){
-                board[p.r][p.c]=null;
-                playerPieces = playerPieces.filter(x=>x!==p);
-                checkVictory();
-              }
+              attack(e,p);
               break;
             }
           }
@@ -179,36 +198,23 @@ function enemyTurn(){
   renderBoard();
 }
 
-// Victory / Game Over
+// Victory check
 function checkVictory(){
-  let enemyCount=0;
-  let kingAlive=false;
+  let enemies=0, kingAlive=false;
   for(let r=0;r<8;r++){
     for(let c=0;c<8;c++){
-      let p=board[r][c];
-      if(p && p.enemy){
-        enemyCount++;
-        if(p.type==='king') kingAlive=true;
-      }
+      const p=board[r][c];
+      if(p && p.enemy){ enemies++; if(p.type==='king') kingAlive=true; }
     }
   }
-  if(enemyCount===0 || !kingAlive){
-    document.getElementById('info').innerText='🎉 You Win!';
-  } else if(playerPieces.length===0){
-    document.getElementById('info').innerText='💀 Game Over!';
-  }
+  if(enemies===0 || !kingAlive) document.getElementById('info').innerText='🎉 You Win!';
+  else if(playerPieces.length===0) document.getElementById('info').innerText='💀 Game Over!';
 }
 
 // Restart
-function restartGame(){
-  board = Array.from({length:8},()=>Array(8).fill(null));
-  playerPieces=[];
-  selectedPiece=null;
-  initBoard();
-}
+function restartGame(){ initBoard(); }
 
 initBoard();
 </script>
-
 </body>
 </html>
