@@ -1,0 +1,53 @@
+<div id="blade-last-login" style="
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: white;
+  background: transparent;
+  font-size: 20px;
+  opacity: 0.9;
+">
+  Last login: <span id="blade-login-time">Now</span>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = "blade_last_login";
+  const now = Date.now();
+
+  function formatTimeAgo(ms) {
+    const seconds = Math.floor((now - ms) / 1000);
+
+    if (seconds < 10) return "Now";
+    if (seconds < 60) return `${seconds} seconds ago`;
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "Yesterday";
+    if (days < 30) return `${days} days ago`;
+
+    const months = Math.floor(days / 30);
+    if (months === 1) return "Last month";
+    if (months < 12) return `${months} months ago`;
+
+    const years = Math.floor(months / 12);
+    if (years === 1) return "Last year";
+    return `${years} years ago`;
+  }
+
+  const lastLogin = localStorage.getItem(STORAGE_KEY);
+  const display = document.getElementById("blade-login-time");
+
+  if (lastLogin) {
+    display.textContent = formatTimeAgo(Number(lastLogin));
+  } else {
+    display.textContent = "Now";
+  }
+
+  // Update login time for this session
+  localStorage.setItem(STORAGE_KEY, now);
+})();
+</script>
