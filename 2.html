@@ -1,0 +1,42 @@
+<div id="blade-name-wrap" style="
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: white;
+  background: transparent;
+  font-size: 30px;
+  opacity: 0.95;
+">
+
+Welcome Back,
+  <span
+    id="blade-name"
+    contenteditable="true"
+    spellcheck="false"
+    style="
+      outline: none;
+      border-bottom: 1px dashed rgba(255,255,255,0.35);
+      cursor: text;
+      padding: 2px 4px;
+    "
+  ></span>
+</div>
+
+<script>
+(function () {
+  const KEY = "blade_user_name";
+  const el = document.getElementById("blade-name");
+
+  const saved = localStorage.getItem(KEY);
+  el.textContent = saved || "Blade User";
+
+  el.addEventListener("input", () => {
+    localStorage.setItem(KEY, el.textContent.trim());
+  });
+
+  el.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      el.blur();
+    }
+  });
+})();
+</script>
